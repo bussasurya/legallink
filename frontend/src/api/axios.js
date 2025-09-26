@@ -2,9 +2,10 @@
 
 import axios from 'axios';
 
-// Create an instance of axios with a default base URL
+// The app will now use the public URL when deployed,
+// and fallback to localhost for local development.
 const api = axios.create({
-    baseURL: 'http://localhost:5000',
+    baseURL: process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000',
 });
 
 export default api;
