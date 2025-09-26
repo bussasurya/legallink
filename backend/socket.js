@@ -7,7 +7,8 @@ let io;
 function initializeSocket(server) {
     io = new Server(server, {
         cors: {
-            origin: "http://localhost:3000", // Your frontend URL
+            // CRITICAL FIX: Allow both your local and deployed frontend URLs
+            origin: ["http://localhost:3000", "https://legallink.vercel.app"],
             methods: ["GET", "POST"]
         }
     });
