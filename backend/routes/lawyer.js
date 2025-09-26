@@ -14,6 +14,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// --- PRIVATE LAWYER ROUTES ---
+
 router.get('/profile', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
@@ -51,6 +53,9 @@ router.get('/consultations', auth, async (req, res) => {
     }
 });
 
+
+// --- PUBLIC LAWYER ROUTES ---
+
 router.get('/verified', async (req, res) => {
     try {
         const lawyers = await User.find({ role: 'lawyer', isVerified: true }).select('-password -documents');
@@ -63,7 +68,11 @@ router.get('/verified', async (req, res) => {
 
 router.get('/category/:categoryName', async (req, res) => {
     try {
-        const lawyers = await User.find({ role: 'lawyer', isVerified: true, primaryPracticeArea: req.params.categoryName }).select('-password -documents');
+        const lawyers = await User.find({
+            role: 'lawyer',
+            isVerified: true,
+            primaryPracticeArea: req.params.categoryName
+        }).select('-password -documents');
         res.json(lawyers);
     } catch (err) {
         console.error(err.message);
@@ -71,14 +80,13 @@ router.get('/category/:categoryName', async (req, res) => {
     }
 });
 
-// THIS ROUTE IS UPDATED TO HIDE CONTACT INFO
 router.get('/:id', async (req, res) => {
     try {
         const lawyer = await User.findOne({ 
             _id: req.params.id, 
             role: 'lawyer', 
             isVerified: true 
-        }).select('-password -documents -emailVerified -verificationToken -phone -email'); // Excludes sensitive info
+        }).select('-password -documents -email -phone');
         if (!lawyer) {
             return res.status(404).json({ msg: 'Lawyer not found or not verified.' });
         }
