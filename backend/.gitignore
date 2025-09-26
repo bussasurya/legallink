@@ -1,0 +1,56 @@
+# ===================================================================
+# General & OS-specific Files
+# ===================================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===================================================================
+# Node.js / JavaScript
+# ===================================================================
+
+# Logs
+# Logs and debug files from various package managers
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency Directories
+# Never commit node_modules
+node_modules/
+
+# Environment Variables
+# Keep sensitive variables out of your repository.
+# It's a best practice to commit an example file.
+.env
+.env.*
+!.env.example
+
+# Build & Production Output
+# These files are generated from your source code.
+build/
+dist/
+.out/
+coverage/
+*.tsbuildinfo
+
+# ===================================================================
+# IDE & Editor Specific
+# ===================================================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# ===================================================================
+# User Uploads or Dynamic Content (Optional, but recommended)
+# ===================================================================
+uploads/
+public/uploads/
