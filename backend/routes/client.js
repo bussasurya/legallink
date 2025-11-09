@@ -4,8 +4,8 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const User = require('../models/User');
-const Consultation = require('../models/Consultation'); // Import Consultation model
-const auth = require('../middleware/auth'); // To protect the new route
+const Consultation = require('../models/Consultation');
+const auth = require('../middleware/auth');
 
 // @route   POST /api/client/analyze-case
 // @desc    Analyzes a case description using Hugging Face
@@ -13,7 +13,9 @@ const auth = require('../middleware/auth'); // To protect the new route
 router.post('/analyze-case', async (req, res) => {
     const { description } = req.body;
     const apiToken = process.env.HUGGINGFACE_API_TOKEN;
-    const apiUrl = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
+
+    // --- CRITICAL FIX 1: This is the new, correct URL ---
+    const apiUrl = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli";
 
     if (!description) {
         return res.status(400).json({ msg: 'Please provide a case description.' });
@@ -27,19 +29,22 @@ router.post('/analyze-case', async (req, res) => {
     try {
         const hfResponse = await axios.post(apiUrl, 
             {
-                inputs: description,
-                parameters: { candidate_labels: legalCategories },
+                // --- CRITICAL FIX 2: The "model" key is removed ---
+                "inputs": description,
+                "parameters": { "candidate_labels": legalCategories },
             },
             {
                 headers: { Authorization: `Bearer ${apiToken}` }
             }
         );
 
+        // --- CRITICAL FIX 3: This model's response is NOT nested in an array ---
         if (!hfResponse.data || !Array.isArray(hfResponse.data.labels) || hfResponse.data.labels.length === 0) {
             console.error('Invalid response from Hugging Face:', hfResponse.data);
             throw new Error('AI model did not return a valid category.');
         }
 
+        // Get the category with the highest score
         const category = hfResponse.data.labels[0];
 
         const matchingLawyers = await User.find({
@@ -60,7 +65,7 @@ router.post('/analyze-case', async (req, res) => {
         } else {
             console.error("Error Message:", err.message);
         }
-        res.status(500).json({ msg: 'There was an error analyzing your case. The AI model may be loading, please try again in a moment.' });
+        res.status(500).json({ msg: 'Error analyzing your case. The AI model may be loading, please try again in a moment.' });
     }
 });
 
@@ -75,7 +80,7 @@ router.get('/my-consultations', auth, async (req, res) => {
         
         res.json(consultations);
     } catch (err) {
-        console.error(err.message);
+        console.error("--- ERROR FETCHING CLIENT CONSULTATIONS ---", err);
         res.status(500).send('Server Error');
     }
 });

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 
 // Connect to the backend server
-const socket = io.connect("http://localhost:5000");
+const socket = io.connect(process.env.REACT_APP_BACKEND_URL || "http://localhost:5000");
 
 const Chat = ({ room }) => {
     const [currentMessage, setCurrentMessage] = useState("");

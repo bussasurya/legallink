@@ -25,18 +25,7 @@ import SignUpPage from './pages/SignUpPage';
 import BookingPage from './pages/BookingPage';
 import AvailabilityPage from './pages/AvailabilityPage';
 import MyCasesPage from './pages/MyCasesPage';
-import KnowledgeHubPage from './pages/KnowledgeHubPage';
-
-// --- Import the 8 new Guide Pages ---
-import GuideDivorcePage from './pages/guides/GuideDivorcePage';
-import GuidePropertyPage from './pages/guides/GuidePropertyPage';
-import GuideCriminalPage from './pages/guides/GuideCriminalPage';
-import GuideCorporatePage from './pages/guides/GuideCorporatePage';
-import GuideCivilPage from './pages/guides/GuideCivilPage';
-import GuideConsumerPage from './pages/guides/GuideConsumerPage';
-import GuideTaxPage from './pages/guides/GuideTaxPage';
-import GuideCyberPage from './pages/guides/GuideCyberPage';
-
+// KnowledgeHubPage and ArticleDetailPage imports are removed
 
 // Placeholder pages for other sidebar links
 const MeetingsPage = () => <div style={{padding: '2rem'}}><h1>Meetings</h1><p>A list of scheduled meetings with lawyers will appear here.</p></div>;
@@ -44,10 +33,11 @@ const MeetingsPage = () => <div style={{padding: '2rem'}}><h1>Meetings</h1><p>A 
 // This helper component determines which layout to render
 const AppLayout = () => {
     const location = useLocation();
+    // Updated list of dashboard routes
     const dashboardRoutes = [
         '/client-dashboard', '/lawyer-dashboard', '/admin-dashboard',
-        '/profile', '/meetings', '/my-cases', '/knowledge-hub',
-        '/availability', '/guides' // Add guides parent route
+        '/profile', '/meetings', '/my-cases', 
+        '/availability'
     ];
     const isDashboard = dashboardRoutes.some(path => location.pathname.startsWith(path));
 
@@ -72,11 +62,10 @@ const AppLayout = () => {
 
 function App() {
   return (
-    // ThemeProvider has been removed
     <Router>
         <style>
         {`
-          @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Merriweather:wght@700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Merriweather:wght@700&display.swap');
           body { margin: 0; overflow-x: hidden; }
         `}
         </style>
@@ -104,18 +93,8 @@ function App() {
                     <Route path="/profile" element={<MyProfilePage />} />
                     <Route path="/meetings" element={<MeetingsPage />} />
                     <Route path="/my-cases" element={<MyCasesPage />} />
-                    <Route path="/knowledge-hub" element={<KnowledgeHubPage />} />
                     <Route path="/availability" element={<AvailabilityPage />} />
-                    
-                    {/* --- NEW GUIDE ROUTES --- */}
-                    <Route path="/guides/divorce" element={<GuideDivorcePage />} />
-                    <Route path="/guides/property" element={<GuidePropertyPage />} />
-                    <Route path="/guides/criminal" element={<GuideCriminalPage />} />
-                    <Route path="/guides/corporate" element={<GuideCorporatePage />} />
-                    <Route path="/guides/civil" element={<GuideCivilPage />} />
-                    <Route path="/guides/consumer" element={<GuideConsumerPage />} />
-                    <Route path="/guides/tax" element={<GuideTaxPage />} />
-                    <Route path="/guides/cyber" element={<GuideCyberPage />} />
+                    {/* knowledge-hub and article routes are removed */}
                 </Route>
             </Routes>
         </div>

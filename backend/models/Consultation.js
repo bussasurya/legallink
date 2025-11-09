@@ -14,6 +14,22 @@ const consultationSchema = new Schema({
         ref: 'User',
         required: true,
     },
+    
+    // --- NEW UNIQUE ID FIELD ---
+    caseId: {
+        type: String,
+        unique: true,
+        required: true
+    },
+    // --------------------------
+
+    caseCategory: {
+        type: String,
+        required: true,
+    },
+    caseSubType: {
+        type: String,
+    },
     caseDescription: {
         type: String,
         required: true,
@@ -24,7 +40,7 @@ const consultationSchema = new Schema({
     }],
     status: {
         type: String,
-        enum: ['Pending', 'Accepted', 'Rejected', 'Completed'],
+        enum: ['Pending', 'Accepted', 'Rejected', 'Paid', 'Completed'],
         default: 'Pending',
     },
     lawyerDismissed: {
@@ -34,6 +50,24 @@ const consultationSchema = new Schema({
     requestedAt: {
         type: Date,
         default: Date.now,
+    },
+    
+    bookingDetails: {
+        clientName: { type: String },
+        clientEmail: { type: String },
+        clientPhone: { type: String },
+        caseSubType: { type: String },
+        caseTitle: { type: String },
+        detailedDescription: { type: String },
+        caseDocuments: [{
+            docName: { type: String },
+            filePath: { type: String },
+        }],
+    },
+
+    bookedSlot: {
+        date: { type: String },
+        time: { type: String },
     },
 });
 

@@ -42,7 +42,7 @@ const Navbar = () => {
     useEffect(() => {
         checkUserStatus();
         const unsubscribe = listenToAuthChange(checkUserStatus);
-        const socket = io("http://localhost:5000");
+        const socket = io.connect(process.env.REACT_APP_BACKEND_URL || "http://localhost:5000");
         const storedUser = localStorage.getItem('user');
         socket.off('new_consultation');
 
@@ -159,7 +159,7 @@ const Navbar = () => {
                 ) : (
                     <>
                         <Link to="/login" style={buttonStyle}>Login</Link>
-                        {/* CRITICAL FIX: Changed the dropdown to a direct link */}
+                        {/* --- CRITICAL FIX: Reverted to a direct link --- */}
                         <Link to="/signup" style={signupButtonStyle}>Sign Up</Link>
                     </>
                 )}

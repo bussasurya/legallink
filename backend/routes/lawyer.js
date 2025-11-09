@@ -14,8 +14,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- PRIVATE LAWYER ROUTES ---
-
+// @route   GET /api/lawyer/profile
 router.get('/profile', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
@@ -26,6 +25,7 @@ router.get('/profile', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/lawyer/upload-documents
 router.post('/upload-documents', auth, upload.fields([{ name: 'idProof', maxCount: 1 }, { name: 'degree', maxCount: 1 }]), async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -42,6 +42,7 @@ router.post('/upload-documents', auth, upload.fields([{ name: 'idProof', maxCoun
     }
 });
 
+// @route   GET /api/lawyer/consultations
 router.get('/consultations', auth, async (req, res) => {
     try {
         const consultations = await Consultation.find({ lawyer: req.user.id, lawyerDismissed: false })
@@ -53,9 +54,7 @@ router.get('/consultations', auth, async (req, res) => {
     }
 });
 
-
-// --- PUBLIC LAWYER ROUTES ---
-
+// @route   GET /api/lawyer/verified
 router.get('/verified', async (req, res) => {
     try {
         const lawyers = await User.find({ role: 'lawyer', isVerified: true }).select('-password -documents');
@@ -66,6 +65,7 @@ router.get('/verified', async (req, res) => {
     }
 });
 
+// @route   GET /api/lawyer/category/:categoryName
 router.get('/category/:categoryName', async (req, res) => {
     try {
         const lawyers = await User.find({
@@ -80,6 +80,7 @@ router.get('/category/:categoryName', async (req, res) => {
     }
 });
 
+// @route   GET /api/lawyer/:id
 router.get('/:id', async (req, res) => {
     try {
         const lawyer = await User.findOne({ 
