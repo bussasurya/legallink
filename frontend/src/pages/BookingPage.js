@@ -7,21 +7,7 @@ import api from '../api/axios';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css'; // Import default styles
 
-// Helper function to get dates
-const getNextDays = (daysCount) => {
-    const days = [];
-    const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    for (let i = 0; i < daysCount; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        days.push({
-            dateString: date.toISOString().split('T')[0],
-            dayName: weekDays[date.getDay()],
-            formattedDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        });
-    }
-    return days;
-};
+// Helper function 'getNextDays' has been REMOVED
 
 const BookingPage = () => {
     const { id } = useParams();
@@ -40,7 +26,7 @@ const BookingPage = () => {
     });
     const [consent, setConsent] = useState(false);
     const [availability, setAvailability] = useState(null);
-    const [bookableDates, setBookableDates] = useState([]);
+    // const [bookableDates, setBookableDates] = useState([]); // <-- REMOVED (unused)
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [availableSlots, setAvailableSlots] = useState([]);
@@ -113,16 +99,9 @@ const BookingPage = () => {
             const availabilityRes = await api.get(`/api/availability/${lawyerId}`, { headers: { 'x-auth-token': token } });
             setAvailability(availabilityRes.data);
             
-            const next30Days = getNextDays(30);
-            const lawyerSchedule = availabilityRes.data.schedule;
-            const datesWithSlots = next30Days
-                .map(day => ({
-                    ...day,
-                    slots: lawyerSchedule[day.dayName.toLowerCase()] || []
-                }))
-                .filter(day => day.slots.length > 0);
-            
-            setBookableDates(datesWithSlots); // This is now correctly used
+            // Pre-load slots for the current date
+            const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            setAvailableSlots(availabilityRes.data.schedule[todayName] || []);
             
             toast.dismiss(loadingToast);
             toast.success('Details Saved!');
@@ -217,29 +196,22 @@ const BookingPage = () => {
     const labelStyle = { display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', color: '#555' };
     const calendarContainerStyle = { display: 'flex', justifyContent: 'center' };
     const slotsContainerStyle = { marginTop: '2rem', textAlign: 'center' };
-    const slotGroupStyle = { marginBottom: '1rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '1rem' };
+    // const slotGroupStyle = { ... }; // <-- REMOVED (unused)
     const slotButtonStyle = { padding: '0.5rem 1rem', border: '1px solid #0A2342', background: 'none', color: '#0A2342', margin: '0.25rem', borderRadius: '4px', cursor: 'pointer' };
     const selectedSlotStyle = { ...slotButtonStyle, background: '#0A2342', color: 'white' };
 
-    // --- PROFESSIONAL CALENDAR STYLES (Adjusted for Square/Rectangular Tiles) ---
+    // --- PROFESSIONAL CALENDAR STYLES ---
     const calendarCustomStyles = `
         .calendar-container { display: flex; justify-content: center; }
         .react-calendar { width: 100%; max-width: 450px; border: none; font-family: 'Lato', sans-serif; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 1rem; }
         .react-calendar__navigation button { color: #0A2342; font-size: 1.2rem; font-weight: bold; min-width: 44px; }
         .react-calendar__navigation button:disabled { background-color: #f8f9fa; }
         .react-calendar__month-view__weekdays__weekday { text-align: center; font-weight: bold; color: #888; text-decoration: none; padding-bottom: 0.5rem; }
-        .react-calendar__month-view__days__day--weekend { color: #333; } /* Remove red color from weekends */
+        .react-calendar__month-view__days__day--weekend { color: #333; }
         .react-calendar__tile { 
-            border: none; 
-            background: none; 
-            border-radius: 4px; /* Square corners */
-            height: 40px;
-            width: 40px;
-            margin: 4px;
-            display: flex; 
-            justify-content: center; 
-            align-items: center;
-            font-size: 0.9rem;
+            border: none; background: none; border-radius: 4px; height: 40px;
+            width: 40px; margin: 4px; display: flex; justify-content: center; 
+            align-items: center; font-size: 0.9rem;
         }
         .react-calendar__tile:enabled:hover, .react-calendar__tile:enabled:focus { background: #e6e6e6; }
         .react-calendar__tile--now { background: #D4AF37; color: #0A2342; font-weight: bold; }
@@ -353,7 +325,7 @@ const BookingPage = () => {
                 {step === 3 && (
                     <div>
                         <h2 style={sectionHeadingStyle}>Step 3: Payment</h2>
-                        <div style={{...formSectionStyle, padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '8px'}}>
+                        <div style={{...formSectionStyle, padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px'}}>
                             <h4 style={{margin: 0}}>Booking Summary</h4>
                             <p style={{margin: '0.5rem 0'}}>
                                 <strong>Lawyer:</strong> {consultation.lawyer.firstName} {consultation.lawyer.lastName}
