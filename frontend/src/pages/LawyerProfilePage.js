@@ -184,20 +184,20 @@ const LawyerProfilePage = () => {
     color: "#0A2342",
     marginBottom: "0.75rem",
   };
-  const tagListStyle = {
-    listStyle: "none",
-    paddingLeft: 0,
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.5rem",
-  };
-  const tagStyle = {
-    background: "#f1f5f9",
-    borderRadius: "999px",
-    padding: "0.35rem 0.75rem",
-    fontSize: "0.9rem",
-    color: "#333",
-  };
+  //const tagListStyle = {
+  //listStyle: "none",
+  //paddingLeft: 0,
+ // display: "flex",
+ // flexWrap: "wrap",
+  //gap: "0.5rem",
+//};
+  //const tagStyle = {
+  //  background: "#f1f5f9",
+   // borderRadius: "999px",
+    //padding: "0.35rem 0.75rem",
+   // fontSize: "0.9rem",
+   // color: "#333",
+  //};
   const buttonStyle = {
     width: "100%",
     padding: "1rem",

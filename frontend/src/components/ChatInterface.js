@@ -1,3 +1,4 @@
+// frontend/src/components/ChatInterface.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import api from '../api/axios';
@@ -22,10 +23,11 @@ const ChatInterface = ({ consultation, currentUser }) => {
   const [newMessage, setNewMessage] = useState('');
   const [fileToSend, setFileToSend] = useState(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line no-unused-vars
   const [socket, setSocket] = useState(null);
   const messageEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const initialScrollDone = useRef(false); // Fix: prevent auto scroll jump
+  const initialScrollDone = useRef(false);
 
   const receiverId = currentUser.role === 'client' ? consultation.lawyer._id : consultation.client._id;
 
@@ -48,7 +50,7 @@ const ChatInterface = ({ consultation, currentUser }) => {
     const newSocket = io(process.env.REACT_APP_BACKEND_URL || "http://localhost:5000");
     setSocket(newSocket);
     newSocket.emit('join_user_room', currentUser.id);
-    
+
     newSocket.on('new_message', (message) => {
       setMessages((prev) => [...prev, message]);
     });
@@ -59,17 +61,14 @@ const ChatInterface = ({ consultation, currentUser }) => {
     };
   }, [fetchMessages, currentUser.id]);
 
-  // --- FIXED: prevent "page jump" ---
   useEffect(() => {
     if (!messageEndRef.current) return;
     if (!initialScrollDone.current && messages.length > 0) {
-      // Wait until the DOM fully paints before scrolling
       requestAnimationFrame(() => {
         messageEndRef.current.scrollIntoView({ behavior: 'auto' });
         initialScrollDone.current = true;
       });
     } else if (initialScrollDone.current) {
-      // Smooth scroll for new messages only
       messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
@@ -117,7 +116,6 @@ const ChatInterface = ({ consultation, currentUser }) => {
     }
   };
 
-  // --- Styles ---
   const chatContainerStyle = {
     border: '1px solid #e5e7eb',
     borderRadius: '12px',
