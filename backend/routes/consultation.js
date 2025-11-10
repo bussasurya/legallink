@@ -94,8 +94,11 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const consultation = await Consultation.findById(req.params.id)
             .populate('lawyer', 'firstName lastName specialization email phone primaryPracticeArea')
-            .populate('client', 'firstName lastName');
+            // --- CRITICAL FIX: Added 'email' and 'phone' to the client populate ---
+            .populate('client', 'firstName lastName email phone');
+            
         if (!consultation) return res.status(404).json({ msg: 'Consultation not found.' });
+        
         if (consultation.client._id.toString() !== req.user.id && consultation.lawyer._id.toString() !== req.user.id) {
             return res.status(401).json({ msg: 'User not authorized.' });
         }

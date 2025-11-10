@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import ChatInterface from '../components/ChatInterface'; // Import the new chat component
+import ChatInterface from '../components/ChatInterface'; // Import the chat component
 
 const ConsultationDetailPage = () => {
     const { id } = useParams();
@@ -20,7 +20,6 @@ const ConsultationDetailPage = () => {
         }
 
         try {
-            // Get both the consultation and the current user's profile
             const [consultRes, userRes] = await Promise.all([
                 api.get(`/api/consultations/${id}`, { headers: { 'x-auth-token': token } }),
                 api.get('/api/profile/me', { headers: { 'x-auth-token': token } })
@@ -66,27 +65,34 @@ const ConsultationDetailPage = () => {
         textDecoration: 'none',
         marginTop: '1rem'
     };
+    const backLinkStyle = { 
+        textDecoration: 'none', 
+        color: '#0A2342', 
+        fontWeight: 'bold',
+        display: 'inline-block',
+        marginBottom: '1.5rem'
+    };
     
-    // --- NEW STYLES for 2-Column Layout ---
+    // --- Styles for 2-Column Layout ---
     const twoColumnLayoutStyle = {
         display: 'flex',
         flexDirection: 'row',
         gap: '2rem',
     };
     const chatColumnStyle = {
-        flex: 2, // Chat takes 2/3 of the space
+        flex: 2,
         minWidth: '400px',
     };
     const detailsSidebarStyle = {
-        flex: 1, // Details take 1/3 of the space
+        flex: 1,
         minWidth: '300px',
         backgroundColor: '#f8f9fa',
         border: '1px solid #e5e7eb',
         borderRadius: '8px',
         padding: '1.5rem',
-        height: 'fit-content', // So it doesn't scroll with chat
+        height: 'fit-content',
         position: 'sticky',
-        top: '100px', // Adjust as needed based on your navbar height
+        top: '100px',
     };
     const detailItemStyle = {
         marginBottom: '1.25rem',
@@ -178,7 +184,7 @@ const ConsultationDetailPage = () => {
                                     <p style={detailValueStyle}>{bookedSlot.time}</p>
                                 </div>
 
-                                {/* --- CRITICAL FIX: Use currentUser.role to determine the label --- */}
+                                {/* --- CRITICAL FIX: Labels are now correct --- */}
                                 <div style={detailItemStyle}>
                                     <span style={detailLabelStyle}>
                                         {currentUser.role === 'client' ? "Lawyer's Email:" : "Client's Email:"}
@@ -213,7 +219,15 @@ const ConsultationDetailPage = () => {
     return (
         <div style={pageStyle}>
             <div style={cardStyle}>
-                <Link to="/my-cases" style={{ textDecoration: 'none', color: '#0A2342', fontWeight: 'bold' }}>&#8592; Back to My Cases</Link>
+                {/* --- CRITICAL FIX: Dynamic "Back" link --- */}
+                {currentUser && (
+                    <Link 
+                        to={currentUser.role === 'client' ? "/my-cases" : "/manage-cases"} 
+                        style={backLinkStyle}
+                    >
+                        &#8592; Back to {currentUser.role === 'client' ? "My Cases" : "Manage Cases"}
+                    </Link>
+                )}
                 {renderContent()}
             </div>
         </div>

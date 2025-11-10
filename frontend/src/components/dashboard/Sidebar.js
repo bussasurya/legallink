@@ -7,9 +7,8 @@ import { Link, useLocation } from 'react-router-dom';
 const icons = {
     dashboard: (color) => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill={color}><path d="M0 0h24v24H0z" fill="none"/><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>,
     profile: (color) => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill={color}><path d="M0 0h24v24H0z" fill="none"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>,
-    availability: (color) => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill={color}><path d="M0 0h24v24H0z" fill="none"/><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>,
     cases: (color) => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill={color}><path d="M0 0h24v24H0z" fill="none"/><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z"/></svg>,
-   knowledge: (color) => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill={color}><path d="M0 0h24v24H0z" fill="none"/><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>,
+    knowledge: (color) => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill={color}><path d="M0 0h24v24H0z" fill="none"/><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>,
 };
 
 const Sidebar = ({ isToggled, setToggled }) => {
@@ -58,7 +57,6 @@ const Sidebar = ({ isToggled, setToggled }) => {
         display: isToggled ? 'none' : 'inline'
     };
 
-    // ✅ FIXED TOGGLE BUTTON STYLE
     const toggleButtonStyle = {
         position: 'fixed',
         top: '90px',
@@ -77,6 +75,7 @@ const Sidebar = ({ isToggled, setToggled }) => {
         transition: 'left 0.3s ease'
     };
 
+    // --- UPDATED NAVIGATION ITEMS ---
     const navItems = {
         client: [
             { path: "/client-dashboard", icon: icons.dashboard, label: "Dashboard" },
@@ -86,8 +85,8 @@ const Sidebar = ({ isToggled, setToggled }) => {
         ],
         lawyer: [
             { path: "/lawyer-dashboard", icon: icons.dashboard, label: "Dashboard" },
+            { path: "/manage-cases", icon: icons.cases, label: "Manage Cases" },
             { path: "/profile", icon: icons.profile, label: "My Profile" },
-            { path: "/availability", icon: icons.availability, label: "My Availability" },
         ],
         admin: [
             { path: "/admin-dashboard", icon: icons.dashboard, label: "Dashboard" },
@@ -110,7 +109,9 @@ const Sidebar = ({ isToggled, setToggled }) => {
             <div style={{ marginTop: '2rem' }}>
                 <nav>
                     {currentNavItems.map(item => {
-                        const isActive = location.pathname === item.path;
+                        // This highlights the parent link even if on a sub-route
+                        const isActive = location.pathname.startsWith(item.path);
+                        
                         const activeStyle = {
                             backgroundColor: '#e8f4fd',
                             color: '#0A2342',

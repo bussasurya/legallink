@@ -2,17 +2,21 @@
 
 const express = require('express');
 const router = express.Router();
-// --- CRITICAL FIX: Use the standard, stable library ---
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// We use the OpenAI library, as Groq's API is compatible with it.
+const { OpenAI } = require('openai');
 
 // 1. Check if the API key is loaded
-if (!process.env.GOOGLE_AI_API_KEY) {
-    console.error("ERROR: GOOGLE_AI_API_KEY is not set in your .env file.");
+if (!process.env.GROQ_API_KEY) {
+    console.error("ERROR: GROQ_API_KEY is not set in your .env file.");
 }
 
-// 2. Initialize the Google AI client
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+// 2. Initialize the OpenAI client to point to Groq's servers
+const groq = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1', // This is the magic line
+});
 
+// 3. This is the "persona" and safety guardrail for your AI
 const systemPrompt = `
     You are "Harshi's AI," a helpful legal assistant for a platform in India called LegalLink.
     Your primary purpose is to provide general legal information and explain complex legal topics in simple, understandable terms for a client.
@@ -33,31 +37,41 @@ router.post('/chat', async (req, res) => {
     }
 
     try {
-        // --- CRITICAL FIX: Use the stable model name ---
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.0-flash-exp", // This is the most reliable model name right now
-            systemInstruction: systemPrompt,
-        });
-        
-        const chatHistory = history.slice(1).map(msg => ({
-            role: msg.sender === 'bot' ? 'model' : 'user',
-            parts: [{ text: msg.text }]
-        }));
+        // 1. Format the history for the API
+        const messagesForAPI = [
+            {
+                role: "system",
+                content: systemPrompt
+            },
+            // Convert our "bot/user" history to "assistant/user"
+            // We skip the first "Hello" message from the bot.
+            ...history.slice(1).map(msg => ({
+                role: msg.sender === 'bot' ? 'assistant' : 'user',
+                content: msg.text
+            })),
+            // Add the user's new message
+            {
+                role: "user",
+                content: message
+            }
+        ];
 
-        const chat = model.startChat({
-            history: chatHistory,
+        // 2. Call the Groq API
+        const completion = await groq.chat.completions.create({
+            // We'll use "Llama 3 8B", a fast and powerful model
+            model: "llama-3.3-70b-versatile", 
+            messages: messagesForAPI,
+            max_tokens: 1000,
         });
 
-        const result = await chat.sendMessage(message);
-        const response = await result.response;
-        const text = response.text();
+        // 3. Get the response text
+        const text = completion.choices[0].message.content;
         
         res.json({ text });
 
     } catch (err) {
         console.error("--- AI CHAT FAILED ---", err);
-        // Send the actual error message back to the frontend for better debugging
-        res.status(500).json({ error: err.message || 'Failed to get a response from the AI.' });
+        res.status(500).json({ error: 'Failed to get a response from the AI.' });
     }
 });
 

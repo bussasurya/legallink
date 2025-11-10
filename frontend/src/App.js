@@ -26,7 +26,7 @@ import BookingPage from './pages/BookingPage';
 import AvailabilityPage from './pages/AvailabilityPage';
 import MyCasesPage from './pages/MyCasesPage';
 import KnowledgeHubPage from './pages/KnowledgeHubPage';
-
+import ManageCasesPage from './pages/ManageCasesPage';
 // --- Import the 8 new Guide Pages ---
 import GuideDivorcePage from './pages/guides/GuideDivorcePage';
 import GuidePropertyPage from './pages/guides/GuidePropertyPage';
@@ -106,6 +106,7 @@ function App() {
                     <Route path="/my-cases" element={<MyCasesPage />} />
                     <Route path="/knowledge-hub" element={<KnowledgeHubPage />} />
                     <Route path="/availability" element={<AvailabilityPage />} />
+                    <Route path="/manage-cases" element={<ManageCasesPage />} />
                     
                     {/* --- NEW GUIDE ROUTES --- */}
                     <Route path="/guides/divorce" element={<GuideDivorcePage />} />
