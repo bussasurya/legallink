@@ -1,25 +1,32 @@
 // frontend/src/pages/ManageCasesPage.js
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client'; // <-- CRITICAL FIX: Added import
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css'; // Import calendar styles
 
-const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const weekDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+// Default empty schedule
+const defaultSchedule = {
+  monday: [], tuesday: [], wednesday: [], thursday: [],
+  friday: [], saturday: [], sunday: []
+};
 
 const ManageCasesPage = () => {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('meetings');
-  // Availability State
-  const [schedule, setSchedule] = useState({
-    monday: [], tuesday: [], wednesday: [], thursday: [],
-    friday: [], saturday: [], sunday: []
-  });
+  const [activeTab, setActiveTab] = useState('availability');
+  
+  const [schedule, setSchedule] = useState(defaultSchedule);
   const [consultationFee, setConsultationFee] = useState(500);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const navigate = useNavigate();
 
-  // --- FETCH DATA ---
+  // --- FETCH DATA (with CRITICAL FIX) ---
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
@@ -32,21 +39,55 @@ const ManageCasesPage = () => {
       const [consultRes, availRes] = await Promise.all([
         api.get('/api/lawyer/consultations', { headers: { 'x-auth-token': token } }),
         api.get('/api/availability', { headers: { 'x-auth-token': token } })
+           .catch(err => {
+               console.warn("No availability set for this lawyer. Using default.");
+               return { data: null }; // Return a default shape
+           })
       ]);
 
-      setConsultations(consultRes.data);
-      setSchedule(availRes.data.schedule);
-      setConsultationFee(availRes.data.consultationFee / 100);
+      setConsultations(consultRes.data || []);
+
+      if (availRes.data) {
+        setSchedule(availRes.data.schedule || defaultSchedule);
+        setConsultationFee(availRes.data.consultationFee / 100);
+      } else {
+        setSchedule(defaultSchedule);
+        setConsultationFee(500);
+      }
+
     } catch (err) {
       console.error("Failed to fetch dashboard data", err);
       toast.error("Could not load case data.");
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate]); // <-- CRITICAL FIX: Removed 'defaultSchedule' as it is a stable constant
 
   useEffect(() => {
     fetchAllData();
+  }, [fetchAllData]);
+
+  // --- Socket.IO Listener ---
+  useEffect(() => {
+    const socket = io(process.env.REACT_APP_BACKEND_URL || "http://localhost:5000");
+    const storedUser = localStorage.getItem('user');
+
+    if (storedUser) {
+        const userId = JSON.parse(storedUser).id;
+        socket.emit('join_user_room', userId);
+        
+        const handleNewConsultation = (data) => {
+            toast.success(data.msg, { duration: 5000 });
+            fetchAllData(); // Re-fetch all data
+        };
+        
+        socket.on('new_consultation', handleNewConsultation);
+        
+        return () => {
+            socket.off('new_consultation', handleNewConsultation);
+            socket.disconnect();
+        };
+    }
   }, [fetchAllData]);
 
   // --- AVAILABILITY HANDLERS ---
@@ -67,8 +108,14 @@ const ManageCasesPage = () => {
     }
   };
 
-  const handleAddTimeSlot = (day) => {
+  const getDayString = (date) => {
+      return weekDays[date.getDay()];
+  };
+
+  const handleAddTimeSlot = () => {
+    const day = getDayString(selectedDate);
     const newSchedule = { ...schedule };
+    newSchedule[day] = newSchedule[day] || [];
     newSchedule[day].push({ startTime: '10:00', endTime: '11:00' });
     setSchedule(newSchedule);
   };
@@ -86,12 +133,21 @@ const ManageCasesPage = () => {
   };
 
   // --- DATA FILTERS ---
-  // Paid cases are "Upcoming Meetings" - Lawyer can enter Case Room here
-  const upcomingMeetings = consultations.filter(c => c.status === 'Paid' && c.bookedSlot?.date);
-  // Other active/historical cases
-  const allOtherCases = consultations.filter(c => ['Accepted', 'Completed', 'Rejected'].includes(c.status));
+  const upcomingMeetings = useMemo(() => 
+    consultations.filter(c => c.status === 'Paid' && c.bookedSlot?.date),
+  [consultations]);
 
-  // --- STYLES (Apple-inspired, adapted to Navy theme) ---
+  const allOtherCases = useMemo(() =>
+    consultations.filter(c => ['Accepted', 'Completed', 'Rejected'].includes(c.status)),
+  [consultations]);
+
+  const todaysBookings = useMemo(() =>
+    consultations.filter(c => 
+      c.status === 'Paid' && c.bookedSlot?.date === selectedDate.toISOString().split('T')[0]
+    ),
+  [consultations, selectedDate]);
+
+  // --- STYLES (Professional Theme) ---
   const pageStyle = {
     fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif",
     backgroundColor: '#f9fafb',
@@ -99,131 +155,52 @@ const ManageCasesPage = () => {
     padding: '3rem 2rem',
     color: '#1d1d1f',
   };
-
-  const containerStyle = {
-      maxWidth: '1000px',
-      margin: '0 auto',
-  };
-
-  const headerStyle = {
-    textAlign: 'center',
-    marginBottom: '3rem',
-  };
-
-  const titleStyle = {
-    fontSize: '2.5rem',
-    fontWeight: '700',
-    color: '#0A2342', // Navy
-    margin: '0 0 0.5rem 0',
-    letterSpacing: '-0.02em'
-  };
+  const containerStyle = { maxWidth: '1200px', margin: '0 auto' };
+  const headerStyle = { textAlign: 'left', marginBottom: '2.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' };
+  const titleStyle = { fontSize: '2.5rem', fontWeight: '700', color: '#0A2342', margin: 0 };
   
+  // --- CRITICAL FIX: Added missing subtitleStyle ---
   const subtitleStyle = {
       fontSize: '1.1rem',
-      color: '#86868b'
+      color: '#86868b',
+      marginTop: '0.5rem'
   };
 
-  // --- Tabs UI ---
-  const tabWrapperStyle = {
-    display: 'flex',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(118, 118, 128, 0.12)', // Apple-style segmented control background
-    padding: '4px',
-    borderRadius: '999px',
-    width: 'fit-content',
-    margin: '0 auto 3rem auto',
-  };
+  const tabWrapperStyle = { display: 'flex', justifyContent: 'center', backgroundColor: 'rgba(118, 118, 128, 0.12)', padding: '4px', borderRadius: '999px', width: 'fit-content', margin: '0 auto 3rem auto' };
+  const tabStyle = { padding: '0.6rem 2rem', borderRadius: '999px', background: 'transparent', border: 'none', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', color: '#555' };
+  const activeTabStyle = { ...tabStyle, backgroundColor: '#FFFFFF', color: '#0A2342', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' };
+  const sectionHeaderStyle = { fontWeight: '700', fontSize: '1.5rem', color: '#0A2342', marginBottom: '1.5rem' };
+  const cardStyle = { background: '#fff', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '18px', padding: '1.5rem 2rem', marginBottom: '1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' };
+  const emptyStateStyle = { textAlign: 'center', color: '#86868b', fontSize: '1.1rem', padding: '4rem 0', background: '#fff', borderRadius: '18px', border: '1px dashed #d2d2d7' };
+  const buttonPrimary = { backgroundColor: '#0A2342', color: '#fff', border: 'none', borderRadius: '999px', padding: '0.8rem 2rem', cursor: 'pointer', fontWeight: '600', fontSize: '1rem', transition: 'opacity 0.2s ease', textDecoration: 'none', display: 'inline-block' };
+  const inputStyle = { padding: '0.8rem 1rem', border: '1px solid #d2d2d7', borderRadius: '12px', backgroundColor: '#fff', outline: 'none', fontSize: '1rem', color: '#1d1d1f', transition: 'border-color 0.2s' };
+  const statusStyle = (status) => ({ display: 'inline-block', padding: '0.35rem 1rem', borderRadius: '999px', backgroundColor: status === 'Accepted' ? '#34c759' : (status === 'Completed' ? '#8e8e93' : '#ff3b30'), color: '#fff', fontSize: '0.85rem', fontWeight: '600' });
+  
+  const availabilityLayout = { display: 'flex', gap: '2rem', flexWrap: 'wrap' };
+  const calendarColumn = { flex: '1.5 1 350px' };
+  const slotsColumn = { flex: '1 1 300px' };
+  const bookedColumn = { flex: '1 1 300px' };
+  const subCardStyle = { ...cardStyle, padding: '1.5rem' };
+  const subCardTitle = { fontSize: '1.2rem', fontWeight: '600', color: '#0A2342', marginBottom: '1rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '0.75rem' };
+  
+  const calendarCustomStyles = `
+    .react-calendar { width: 100%; border: none; font-family: 'Inter', sans-serif; }
+    .react-calendar__tile { border-radius: 8px; }
+    .react-calendar__tile--active { background: #0A2342; color: white; }
+    .react-calendar__tile:enabled:hover, .react-calendar__tile:enabled:focus { background: #e8f4fd; }
+    .react-calendar__tile--now { background: #D4AF37; color: #0A2342; font-weight: bold; }
+    .day-dot { height: 6px; width: 6px; border-radius: 50%; margin: 2px auto 0; }
+    .available-dot { background-color: #34c759; }
+    .booked-dot { background-color: #007aff; }
+  `;
 
-  const tabStyle = {
-    padding: '0.6rem 2rem',
-    borderRadius: '999px',
-    background: 'transparent',
-    border: 'none',
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    color: '#555',
-  };
+  // --- RENDER FUNCTIONS FOR TABS ---
 
-  const activeTabStyle = {
-    ...tabStyle,
-    backgroundColor: '#FFFFFF',
-    color: '#0A2342',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-  };
-
-  const sectionHeaderStyle = {
-    fontWeight: '700',
-    fontSize: '1.5rem',
-    color: '#0A2342',
-    marginBottom: '1.5rem',
-  };
-
-  const cardStyle = {
-    background: '#fff',
-    border: '1px solid rgba(0,0,0,0.05)',
-    borderRadius: '18px', // More rounded
-    padding: '1.5rem 2rem',
-    marginBottom: '1rem',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-    transition: 'all 0.2s ease',
-  };
-
-  const emptyStateStyle = {
-    textAlign: 'center',
-    color: '#86868b',
-    fontSize: '1.1rem',
-    padding: '4rem 0',
-    background: '#fff',
-    borderRadius: '18px',
-    border: '1px dashed #d2d2d7'
-  };
-
-  const buttonPrimary = {
-    backgroundColor: '#0A2342', // Navy
-    color: '#fff',
-    border: 'none',
-    borderRadius: '999px', // Pill shape
-    padding: '0.8rem 2rem',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '1rem',
-    transition: 'opacity 0.2s ease',
-    textDecoration: 'none',
-    display: 'inline-block'
-  };
-
-  const inputStyle = {
-    padding: '0.8rem 1rem',
-    border: '1px solid #d2d2d7',
-    borderRadius: '12px',
-    backgroundColor: '#fff',
-    outline: 'none',
-    fontSize: '1rem',
-    color: '#1d1d1f',
-    transition: 'border-color 0.2s'
-  };
-
-  const statusStyle = (status) => ({
-    display: 'inline-block',
-    padding: '0.35rem 1rem',
-    borderRadius: '999px',
-    backgroundColor:
-      status === 'Accepted' ? '#34c759' : // Apple green
-      status === 'Completed' ? '#8e8e93' : // Apple gray
-      '#ff3b30', // Apple red
-    color: '#fff',
-    fontSize: '0.85rem',
-    fontWeight: '600',
-  });
-
-  // --- RENDER ---
   const renderUpcomingMeetings = () => (
     <section>
       <h2 style={sectionHeaderStyle}>Upcoming Meetings</h2>
       {upcomingMeetings.length === 0 ? (
-        <div style={emptyStateStyle}>No upcoming meetings scheduled.</div>
+        <div style={emptyStateStyle}>No meetings scheduled.</div>
       ) : (
         upcomingMeetings.map(c => (
           <div key={c._id} style={cardStyle}>
@@ -235,11 +212,7 @@ const ManageCasesPage = () => {
                     </p>
                     <p style={{margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#86868b'}}>Case ID: {c.caseId}</p>
                 </div>
-                {/* Direct link to the Case Room (Chat) */}
-                <Link
-                  to={`/consultation/${c._id}`}
-                  style={buttonPrimary}
-                >
+                <Link to={`/consultation/${c._id}`} style={buttonPrimary}>
                   Enter Case Room
                 </Link>
             </div>
@@ -275,71 +248,109 @@ const ManageCasesPage = () => {
     </section>
   );
 
-  const renderAvailability = () => (
-    <section>
-      <h2 style={sectionHeaderStyle}>Availability & Fee</h2>
-      <form onSubmit={handleAvailabilitySubmit}>
-        <div style={{...cardStyle, display: 'flex', alignItems: 'center', gap: '1.5rem'}}>
-          <h3 style={{ margin: 0, fontWeight: '600' }}>Consultation Fee (₹)</h3>
-          <input
-            type="number"
-            value={consultationFee}
-            onChange={(e) => setConsultationFee(e.target.value)}
-            style={{ ...inputStyle, width: '120px', fontSize: '1.2rem', fontWeight: 'bold', color: '#0A2342' }}
-          />
-        </div>
+  const renderAvailability = () => {
+    const selectedDayString = getDayString(selectedDate);
+    const slotsForSelectedDay = (schedule && schedule[selectedDayString]) ? schedule[selectedDayString] : [];
 
-        <div style={cardStyle}>
-          <h3 style={{ marginBottom: '1.5rem', color: '#0A2342' }}>Weekly Schedule</h3>
-          {weekDays.map(day => (
-            <div key={day} style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: day !== 'sunday' ? '1px solid #f0f0f0' : 'none' }}>
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '1rem'}}>
-                  <h4 style={{ textTransform: 'capitalize', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>{day}</h4>
-                  <button
-                    type="button"
-                    onClick={() => handleAddTimeSlot(day)}
-                    style={{ background: 'none', border: 'none', color: '#007aff', fontWeight: '600', cursor: 'pointer' }}
-                  >
-                    + Add Slot
-                  </button>
-              </div>
-              
-              {schedule[day].length === 0 && <p style={{color: '#999', fontSize: '0.9rem', fontStyle: 'italic'}}>Unavailable</p>}
+    const getTileContent = ({ date, view }) => {
+        if (view === 'month') {
+            const dayString = getDayString(date);
+            const dateString = date.toISOString().split('T')[0];
+            
+            const hasAvailability = schedule && schedule[dayString] && schedule[dayString].length > 0;
+            const hasBooking = upcomingMeetings.some(c => c.bookedSlot.date === dateString);
 
-              {schedule[day].map((slot, index) => (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
-                  <input
-                    type="time"
-                    value={slot.startTime}
-                    onChange={(e) => handleTimeChange(day, index, 'startTime', e.target.value)}
-                    style={inputStyle}
-                  />
-                  <span style={{color: '#555'}}>to</span>
-                  <input
-                    type="time"
-                    value={slot.endTime}
-                    onChange={(e) => handleTimeChange(day, index, 'endTime', e.target.value)}
-                    style={inputStyle}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTimeSlot(day, index)}
-                    style={{ background: '#ffe5e5', border: 'none', color: '#ff3b30', cursor: 'pointer', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}
-                  >
-                    ×
-                  </button>
+            return (
+                <div style={{display: 'flex', justifyContent: 'center', gap: '4px'}}>
+                    {hasAvailability && <div className="day-dot available-dot"></div>}
+                    {hasBooking && <div className="day-dot booked-dot"></div>}
                 </div>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div style={{textAlign: 'right'}}>
-             <button type="submit" style={buttonPrimary}>Save Changes</button>
-        </div>
-      </form>
-    </section>
-  );
+            );
+        }
+    };
 
+    return (
+        <section>
+            <style>{calendarCustomStyles}</style>
+            <h2 style={sectionHeaderStyle}>Availability & Fee</h2>
+            
+            <form onSubmit={handleAvailabilitySubmit}>
+                <div style={{...cardStyle, marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'space-between'}}>
+                    <div style={{flex: 1}}>
+                        <h3 style={{ margin: 0, fontWeight: '600' }}>Consultation Fee (₹)</h3>
+                        <p style={{color: '#555', fontSize: '0.9rem', margin: '0.5rem 0 0 0'}}>This is the price a client pays for a single consultation.</p>
+                    </div>
+                    <input
+                        type="number"
+                        value={consultationFee}
+                        onChange={(e) => setConsultationFee(e.target.value)}
+                        style={{ ...inputStyle, width: '120px', fontSize: '1.2rem', fontWeight: 'bold', color: '#0A2342' }}
+                    />
+                </div>
+
+                <div style={availabilityLayout}>
+                    <div style={calendarColumn}>
+                        <div style={cardStyle}>
+                            <Calendar
+                                onChange={setSelectedDate}
+                                value={selectedDate}
+                                tileContent={getTileContent}
+                                minDate={new Date()}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={slotsColumn}>
+                        <div style={subCardStyle}>
+                            <h3 style={subCardTitle}>Set Hours for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+                            {slotsForSelectedDay.length === 0 && <p style={{color: '#999', fontSize: '0.9rem', fontStyle: 'italic'}}>Unavailable</p>}
+                            
+                            {slotsForSelectedDay.map((slot, index) => (
+                                <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+                                    <input type="time" value={slot.startTime} onChange={(e) => handleTimeChange(selectedDayString, index, 'startTime', e.target.value)} style={inputStyle} />
+                                    <span style={{color: '#555'}}>to</span>
+                                    <input type="time" value={slot.endTime} onChange={(e) => handleTimeChange(selectedDayString, index, 'endTime', e.target.value)} style={inputStyle} />
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveTimeSlot(selectedDayString, index)}
+                                        style={{ background: '#ffe5e5', border: 'none', color: '#ff3b30', cursor: 'pointer', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                            <button type="button" onClick={handleAddTimeSlot} style={{...buttonPrimary, background: '#f2f2f7', color: '#0A2342', width: '100%', marginTop: '0.5rem'}}>
+                                + Add Slot
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div style={bookedColumn}>
+                        <div style={subCardStyle}>
+                            <h3 style={subCardTitle}>Bookings for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h3>
+                            {todaysBookings.length === 0 ? (
+                                <p style={{...emptyStateStyle, padding: '1rem 0'}}>No bookings for this day.</p>
+                            ) : (
+                                todaysBookings.map(c => (
+                                    <div key={c._id} style={{borderBottom: '1px solid #f0f0f0', paddingBottom: '0.75rem', marginBottom: '0.75rem'}}>
+                                        <strong style={{color: '#0A2342'}}>{c.bookedSlot.time}</strong>
+                                        <p style={{margin: '0.25rem 0 0 0', color: '#555'}}>with {c.client.firstName} {c.client.lastName}</p>
+                                        <p style={{margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: '#86868b'}}>Case ID: {c.caseId}</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style={{textAlign: 'right', marginTop: '2rem'}}>
+                     <button typeD="submit" style={buttonPrimary}>Save All Changes</button>
+                </div>
+            </form>
+        </section>
+    );
+  };
+  
   if (loading) return <div style={{...pageStyle, display: 'flex', justifyContent: 'center', alignItems: 'center'}}>Loading...</div>;
 
   return (
@@ -351,14 +362,14 @@ const ManageCasesPage = () => {
         </header>
 
         <div style={tabWrapperStyle}>
+          <button style={activeTab === 'availability' ? activeTabStyle : tabStyle} onClick={() => setActiveTab('availability')}>
+            My Availability
+          </button>
           <button style={activeTab === 'meetings' ? activeTabStyle : tabStyle} onClick={() => setActiveTab('meetings')}>
-            Upcoming Meetings
+            Upcoming Meetings ({upcomingMeetings.length})
           </button>
           <button style={activeTab === 'cases' ? activeTabStyle : tabStyle} onClick={() => setActiveTab('cases')}>
             All Cases
-          </button>
-          <button style={activeTab === 'availability' ? activeTabStyle : tabStyle} onClick={() => setActiveTab('availability')}>
-            My Availability
           </button>
         </div>
 
