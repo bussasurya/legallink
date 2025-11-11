@@ -14,7 +14,7 @@ router.post('/analyze-case', async (req, res) => {
     const { description } = req.body;
     const apiToken = process.env.HUGGINGFACE_API_TOKEN;
 
-    // --- CRITICAL FIX 1: This is the new, correct URL ---
+    // This is the correct Hugging Face API endpoint for this model
     const apiUrl = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli";
 
     if (!description) {
@@ -29,7 +29,6 @@ router.post('/analyze-case', async (req, res) => {
     try {
         const hfResponse = await axios.post(apiUrl, 
             {
-                // --- CRITICAL FIX 2: The "model" key is removed ---
                 "inputs": description,
                 "parameters": { "candidate_labels": legalCategories },
             },
@@ -38,14 +37,17 @@ router.post('/analyze-case', async (req, res) => {
             }
         );
 
-        // --- CRITICAL FIX 3: This model's response is NOT nested in an array ---
-        if (!hfResponse.data || !Array.isArray(hfResponse.data.labels) || hfResponse.data.labels.length === 0) {
+        // --- CRITICAL FIX: ---
+        // The response from this API is an ARRAY, not an object.
+        // We must check the first element of the array.
+        if (!hfResponse.data || !Array.isArray(hfResponse.data) || hfResponse.data.length === 0 || !hfResponse.data[0].label) {
             console.error('Invalid response from Hugging Face:', hfResponse.data);
             throw new Error('AI model did not return a valid category.');
         }
 
-        // Get the category with the highest score
-        const category = hfResponse.data.labels[0];
+        // Get the category with the highest score from the first element
+        const category = hfResponse.data[0].label;
+        // -----------------------------------------------------------
 
         const matchingLawyers = await User.find({
             role: 'lawyer',
