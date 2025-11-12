@@ -145,20 +145,7 @@ const KnowledgeHubPage = () => {
     const cardDescStyle = { fontSize: '0.9rem', color: '#555', lineHeight: '1.5' };
 
     // Button
-    const buttonContainerStyle = { textAlign: 'center' };
-    const buttonStyle = {
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif",
-        fontSize: '1rem',
-        fontWeight: '600',
-        padding: '0.75rem 1.5rem',
-        borderRadius: '999px',
-        border: '1px solid #d2d2d7',
-        background: '#fff',
-        color: '#1d1d1f',
-        cursor: 'pointer',
-        textDecoration: 'none',
-        transition: 'all 0.2s ease-in-out',
-    };
+    
     
     // Insights Carousel
     const insightsSectionStyle = { background: 'linear-gradient(to bottom, #ffffff, #f3f6fb)', padding: '4rem 0', margin: '5rem 0' };
@@ -264,16 +251,7 @@ const KnowledgeHubPage = () => {
                             </Link>
                         ))}
                     </div>
-                    <div style={buttonContainerStyle}>
-                        <Link 
-                            to="/guides" 
-                            style={buttonStyle}
-                            onMouseOver={e => e.currentTarget.style.background = '#f5f5f7'}
-                            onMouseOut={e => e.currentTarget.style.background = '#fff'}
-                        >
-                            View All Guides →
-                        </Link>
-                    </div>
+                    
                 </section>
             </div>
 
