@@ -2,10 +2,24 @@
 
 import axios from 'axios';
 
-// The app will now use the public URL when deployed,
-// and fallback to localhost for local development.
+// 1. We get the backend URL from an environment variable
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+
+// 2. We create a "bridge" (an axios instance)
 const api = axios.create({
-    baseURL: process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000',
+    baseURL: API_URL
+});
+
+// 3. We use this to automatically add your login token (x-auth-token)
+//    to every single request you send from the frontend.
+api.interceptors.request.use(config => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers['x-auth-token'] = token;
+    }
+    return config;
+}, error => {
+    return Promise.reject(error);
 });
 
 export default api;
