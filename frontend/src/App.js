@@ -39,7 +39,7 @@ import GuideCyberPage from './pages/guides/GuideCyberPage';
 
 
 // Placeholder pages for other sidebar links
-const MeetingsPage = () => <div style={{padding: '2rem'}}><h1>Meetings</h1><p>A list of scheduled meetings will appear here.</p></div>;
+const MeetingsPage = () => <div style={{padding: '2rem'}}><h1>Meetings</h1><p>A list of scheduled meetings with lawyers will appear here.</p></div>;
 
 // This helper component determines which layout to render
 const AppLayout = () => {
@@ -51,11 +51,21 @@ const AppLayout = () => {
         '/profile', '/meetings', '/my-cases', '/knowledge-hub',
         '/guides', '/manage-cases'
     ];
+
+    // --- CRITICAL FIX: List of routes that should NOT have a footer ---
+    const noFooterRoutes = [
+        '/login',
+        '/signup',
+        '/admin-login'
+    ];
     
     // Check if current path matches any dashboard route
     const isDashboard = dashboardRoutes.some(path => location.pathname.startsWith(path));
+    // Check if current path is a no-footer page
+    const isNoFooter = noFooterRoutes.some(path => location.pathname.startsWith(path));
 
     if (isDashboard) {
+        // This layout already excludes the footer
         return (
             <DashboardLayout>
                 <Outlet />
@@ -63,7 +73,16 @@ const AppLayout = () => {
         );
     }
 
-    // Standard layout for public pages
+    if (isNoFooter) {
+        // This layout has no footer
+        return (
+            <main style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
+                <Outlet />
+            </main>
+        );
+    }
+
+    // Standard layout for public pages (like HomePage)
     return (
         <>
             <main style={{ flex: 1 }}>

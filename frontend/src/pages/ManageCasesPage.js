@@ -1,10 +1,10 @@
 // frontend/src/pages/ManageCasesPage.js
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react'; // <-- useRef has been removed
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { io } from 'socket.io-client'; // <-- CRITICAL FIX: Added import
+import { io } from 'socket.io-client';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css'; // Import calendar styles
 
@@ -158,7 +158,7 @@ const ManageCasesPage = () => {
   const containerStyle = { maxWidth: '1200px', margin: '0 auto' };
   const headerStyle = { textAlign: 'left', marginBottom: '2.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' };
   const titleStyle = { fontSize: '2.5rem', fontWeight: '700', color: '#0A2342', margin: 0 };
-  const subtitleStyle = { fontSize: '1.1rem', color: '#86868b', marginTop: '0.5rem' }; // <-- CRITICAL FIX
+  const subtitleStyle = { fontSize: '1.1rem', color: '#86868b', marginTop: '0.5rem' };
   const tabWrapperStyle = {
     display: 'flex',
     justifyContent: 'center',
@@ -264,6 +264,18 @@ const ManageCasesPage = () => {
         background-color: #f8f9fa; 
         color: #ccc; 
     }
+    
+    /* --- NEW CLASSES TO REPLACE DOTS --- */
+    .day-has-availability:not(.react-calendar__tile--active) {
+        background: #e6f7f0; /* Soft green */
+        color: #065f46;
+        font-weight: 500;
+    }
+    .day-has-booking:not(.react-calendar__tile--active) {
+        background: #e8f4fd; /* Soft blue */
+        color: #0A2342;
+        font-weight: bold;
+    }
   `;
 
   // --- RENDER FUNCTIONS FOR TABS ---
@@ -320,8 +332,26 @@ const ManageCasesPage = () => {
     const selectedDayString = getDayString(selectedDate);
     const slotsForSelectedDay = (schedule && schedule[selectedDayString]) ? schedule[selectedDayString] : [];
 
-    // This function is no longer needed as we are using the BookingPage.js styles
-    // const getTileContent = () => {}; 
+    // --- UPDATED: Function to add CSS classes instead of dots ---
+    const getTileClassName = ({ date, view }) => {
+        if (view === 'month' && schedule) {
+            const dayString = getDayString(date);
+            const dateString = date.toISOString().split('T')[0];
+            let classNames = [];
+            
+            const hasBooking = upcomingMeetings.some(c => c.bookedSlot.date === dateString);
+            if (hasBooking) {
+                classNames.push('day-has-booking');
+            }
+            
+            const hasAvailability = schedule[dayString] && schedule[dayString].length > 0;
+            if (hasAvailability && !hasBooking) {
+                classNames.push('day-has-availability');
+            }
+            
+            return classNames.join(' ');
+        }
+    };
 
     return (
       <section>
@@ -348,7 +378,7 @@ const ManageCasesPage = () => {
                 <Calendar
                   onChange={setSelectedDate}
                   value={selectedDate}
-                  // tileContent={getTileContent} // <-- REMOVED
+                  tileClassName={getTileClassName} // <-- UPDATED from tileContent
                   minDate={new Date()}
                 />
               </div>
