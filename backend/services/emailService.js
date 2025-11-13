@@ -2,51 +2,55 @@
 
 const nodemailer = require('nodemailer');
 
-const sendVerificationEmail = async (email, token) => {
+// Note: We accept 'verificationUrl' here, not just 'token'.
+// This allows auth.js to pass the correct production URL from the .env file.
+const sendVerificationEmail = async (email, verificationUrl) => {
     try {
-        // 1. Create a transporter with explicit settings
+        // 1. Create a transporter with explicit SSL and Timeouts for Render
         const transporter = nodemailer.createTransport({
-            service: 'gmail', // Or your preferred service
             host: 'smtp.gmail.com',
             port: 465,
             secure: true, // Use SSL
             auth: {
-                user: process.env.EMAIL_USER, // Your email address from .env
-                pass: process.env.EMAIL_PASS, // Your 16-digit app password from .env
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
             },
-            tls: {
-                rejectUnauthorized: false
-            }
+            // --- CRITICAL FIX FOR RENDER TIMEOUTS ---
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 5000,    // 5 seconds
+            socketTimeout: 10000      // 10 seconds
         });
 
         // 2. Define the email options
         const mailOptions = {
-            from: `"Legal Portal" <${process.env.EMAIL_USER}>`,
+            from: `"LegalLink Support" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: 'Please Verify Your Email for Legal Portal',
+            subject: 'Verify Your Email - LegalLink',
             html: `
-                <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                    <h2>Welcome to Legal Portal!</h2>
-                    <p>Thank you for registering. Please click the button below to verify your email address.</p>
-                    <a 
-                        href="http://localhost:3000/verify-email/${token}" 
-                        style="background-color: #0A2342; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;"
-                    >
-                        Verify My Email
-                    </a>
-                    <p>This link will expire in 1 hour.</p>
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                    <h2 style="color: #0A2342; text-align: center;">Welcome to LegalLink!</h2>
+                    <p style="color: #333; font-size: 16px;">Thank you for registering. Please verify your email address to activate your account.</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${verificationUrl}" style="background-color: #D4AF37; color: #0A2342; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; font-size: 16px;">Verify Email Address</a>
+                    </div>
+                    
+                    <p style="color: #555; font-size: 14px;">Or copy and paste this link into your browser:</p>
+                    <p style="background-color: #f4f4f4; padding: 10px; word-break: break-all; font-size: 12px; color: #555;">${verificationUrl}</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="color: #999; font-size: 12px; text-align: center;">If you did not request this, please ignore this email.</p>
                 </div>
             `,
         };
 
         // 3. Send the email
         await transporter.sendMail(mailOptions);
-        console.log('Verification email sent successfully to:', email);
+        console.log(`Verification email sent successfully to: ${email}`);
 
     } catch (error) {
         console.error('--- ERROR SENDING EMAIL ---:', error);
-        // This ensures that if the email fails, the API still knows about it
-        // and doesn't crash the whole server.
+        // We throw the error so the API route knows it failed
         throw new Error('Email could not be sent due to a server configuration error.');
     }
 };
