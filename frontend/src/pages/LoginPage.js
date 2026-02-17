@@ -9,16 +9,37 @@ import { postAuthChange } from '../services/BroadcastService';
 const LoginPage = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [showResend, setShowResend] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // <-- ADDED to prevent double clicks
     const navigate = useNavigate();
     const { email, password } = formData;
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    const handleResendVerification = async () => { /* ... existing logic ... */ };
+    // --- CRITICAL FIX 1: Implemented the resend logic ---
+    const handleResendVerification = async () => {
+        if (!email) {
+            toast.error('Please enter your email in the field above first.');
+            return;
+        }
+        setIsLoading(true);
+        const loadingToast = toast.loading('Sending email...');
+        try {
+            await api.post('/api/auth/resend-verification', { email });
+            toast.dismiss(loadingToast);
+            toast.success('A new verification email has been sent. Please check your inbox.');
+            setShowResend(false); // Hide the button after success
+        } catch (err) {
+            toast.dismiss(loadingToast);
+            toast.error(err.response?.data?.msg || 'Failed to send email.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setShowResend(false);
+        setIsLoading(true); // <-- ADDED
         const loadingToast = toast.loading('Logging in...');
         try {
             const response = await api.post('/api/auth/login', formData);
@@ -35,11 +56,17 @@ const LoginPage = () => {
             toast.dismiss(loadingToast);
             const errorMessage = err.response?.data?.msg || 'A network error occurred.';
             toast.error(errorMessage);
-            if (err.response?.status === 401) setShowResend(true);
+            
+            // --- CRITICAL FIX 2: Make the check more specific ---
+            if (err.response?.status === 401 && errorMessage.includes('Please verify your email')) {
+                setShowResend(true);
+            }
+        } finally {
+            setIsLoading(false); // <-- ADDED
         }
     };
 
-    // --- STYLES ---
+    // --- STYLES (Unchanged) ---
     const pageStyle = { display: 'flex', minHeight: 'calc(100vh - 70px)', fontFamily: "'Lato', sans-serif" };
     
     // Left Panel
@@ -95,10 +122,14 @@ const LoginPage = () => {
                             <label style={labelStyle}>Password</label>
                             <input style={inputStyle} type="password" name="password" value={password} onChange={handleChange} required />
                         </div>
-                        <button type="submit" style={buttonStyle}>Log In</button>
+                        
+                        {/* --- UPDATED: Added disabled state --- */}
+                        <button type="submit" style={buttonStyle} disabled={isLoading}>
+                            {isLoading ? 'Logging in...' : 'Log In'}
+                        </button>
                         {showResend && (
-                            <button type="button" onClick={handleResendVerification} style={resendButtonStyle}>
-                                Resend Verification Email
+                            <button type="button" onClick={handleResendVerification} style={resendButtonStyle} disabled={isLoading}>
+                                {isLoading ? 'Sending...' : 'Resend Verification Email'}
                             </button>
                         )}
                     </form>
@@ -108,7 +139,7 @@ const LoginPage = () => {
                 </div>
             </div>
         </div>
-    );
+    );  
 };
 
 export default LoginPage;

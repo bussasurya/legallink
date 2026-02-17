@@ -9,103 +9,151 @@ const User = require('../models/User');
 const { sendVerificationEmail } = require('../services/emailService');
 
 // @route   POST api/auth/register
+// @desc    Register a new user
 router.post('/register', async (req, res) => {
-    const { 
-        firstName, lastName, email, password, role, phone, city, state, zipCode,
-        govId, barCouncilId, primaryPracticeArea, additionalPracticeAreas, yearsOfExperience 
-    } = req.body;
+    const { firstName, lastName, email, password, role, govId, ...lawyerData } = req.body;
+
     try {
         let user = await User.findOne({ email });
         if (user) {
-            return res.status(400).json({ msg: 'User with this email already exists' });
+            return res.status(400).json({ msg: 'User already exists' });
         }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         const verificationToken = crypto.randomBytes(32).toString('hex');
-        const tokenExpiry = Date.now() + 3600000;
+        const tokenExpiry = Date.now() + 3600000; // 1 hour
+
         user = new User({
-            firstName, lastName, email, password, role, phone, city, state, zipCode,
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+            role,
             govId: role === 'client' ? govId : undefined,
-            barCouncilId: role === 'lawyer' ? barCouncilId : undefined,
-            primaryPracticeArea: role === 'lawyer' ? primaryPracticeArea : undefined,
-            additionalPracticeAreas: role === 'lawyer' ? additionalPracticeAreas : undefined,
-            yearsOfExperience: role === 'lawyer' ? yearsOfExperience : undefined,
+            emailVerified: false,
             verificationToken,
             tokenExpiry,
+            ...lawyerData
         });
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
+
         await user.save();
-        await sendVerificationEmail(user.email, verificationToken);
+
+        // Create the full, public verification URL
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+        
+        // Pass the full URL to the email service
+        await sendVerificationEmail(user.email, verificationUrl);
+
         res.status(201).json({ msg: 'Registration successful. Please check your email to verify your account.' });
+
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).send('Server Error');
     }
 });
 
 // @route   GET api/auth/verify/:token
+// @desc    Verify email address
 router.get('/verify/:token', async (req, res) => {
     try {
-        const user = await User.findOne({ verificationToken: req.params.token, tokenExpiry: { $gt: Date.now() } });
+        const user = await User.findOne({
+            verificationToken: req.params.token,
+            tokenExpiry: { $gt: Date.now() }
+        });
+
         if (!user) {
-            return res.status(400).json({ msg: 'Verification token is invalid or has expired.' });
+            return res.redirect(`${process.env.FRONTEND_URL}/login?message=Link expired or invalid.`);
         }
+
         user.emailVerified = true;
         user.verificationToken = undefined;
         user.tokenExpiry = undefined;
         await user.save();
-        res.json({ msg: 'Email verified successfully. You can now log in.' });
+
+        res.redirect(`${process.env.FRONTEND_URL}/login?message=Email verified successfully! You can now log in.`);
+
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).send('Server Error');
     }
 });
 
 // @route   POST api/auth/login
+// @desc    Login user and get token
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
+
     try {
         let user = await User.findOne({ email });
-        if (!user) { return res.status(400).json({ msg: 'Invalid credentials' }); }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) { return res.status(400).json({ msg: 'Invalid credentials' }); }
-
-        if (user.role !== 'admin' && !user.emailVerified) {
-            return res.status(401).json({ msg: 'Please verify your email before logging in.' });
+        if (!user) {
+            return res.status(400).json({ msg: 'Invalid credentials' });
         }
 
-        const payload = { user: { id: user.id, role: user.role } };
-        jwt.sign(
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ msg: 'Invalid credentials' });
+        }
+
+        if (!user.emailVerified) {
+            return res.status(401).json({ msg: 'Please verify your email to log in.' });
+        }
+
+        if (user.role === 'lawyer' && !user.isVerified) {
+            return res.status(401).json({ msg: 'Your profile is pending admin verification.' });
+        }
+
+        // --- CRITICAL FIX: The payload MUST have a 'user' object ---
+        const payload = {
+            user: {
+                id: user.id,
+                role: user.role
+            }
+        };
+
+        const token = jwt.sign(
             payload,
             process.env.JWT_SECRET,
-            { expiresIn: '5h' },
-            (err, token) => {
-                if (err) throw err;
-                res.json({ token, user: payload.user });
-            }
+            { expiresIn: '5h' } // 5 hour expiry
         );
+
+        res.json({
+            token,
+            user: { ...payload.user, firstName: user.firstName } // Send user details back
+        });
+
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).send('Server Error');
     }
 });
 
 // @route   POST api/auth/resend-verification
+// @desc    Resend verification email
 router.post('/resend-verification', async (req, res) => {
     const { email } = req.body;
     try {
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ msg: 'User with this email does not exist.' });
+            return res.status(400).json({ msg: 'User not found.' });
         }
         if (user.emailVerified) {
-            return res.status(400).json({ msg: 'This account has already been verified.' });
+            return res.status(400).json({ msg: 'This account is already verified.' });
         }
-        user.verificationToken = crypto.randomBytes(32).toString('hex');
-        user.tokenExpiry = Date.now() + 3600000;
+
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const tokenExpiry = Date.now() + 3600000; // 1 hour
+
+        user.verificationToken = verificationToken;
+        user.tokenExpiry = tokenExpiry;
         await user.save();
-        await sendVerificationEmail(user.email, user.verificationToken);
-        res.json({ msg: 'A new verification email has been sent to your email address.' });
+
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+        await sendVerificationEmail(user.email, verificationUrl);
+
+        res.json({ msg: 'A new verification email has been sent.' });
+
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

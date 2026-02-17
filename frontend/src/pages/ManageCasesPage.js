@@ -1,16 +1,15 @@
 // frontend/src/pages/ManageCasesPage.js
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'; // <-- useRef has been removed
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css'; // Import calendar styles
+import 'react-calendar/dist/Calendar.css';
 
 const weekDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-// Default empty schedule
 const defaultSchedule = {
   monday: [], tuesday: [], wednesday: [], thursday: [],
   friday: [], saturday: [], sunday: []
@@ -20,7 +19,6 @@ const ManageCasesPage = () => {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('availability');
-  
   const [schedule, setSchedule] = useState(defaultSchedule);
   const [consultationFee, setConsultationFee] = useState(500);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -39,14 +37,15 @@ const ManageCasesPage = () => {
       const [consultRes, availRes] = await Promise.all([
         api.get('/api/lawyer/consultations', { headers: { 'x-auth-token': token } }),
         api.get('/api/availability', { headers: { 'x-auth-token': token } })
-           .catch(err => {
-               console.warn("No availability set for this lawyer. Using default.");
-               return { data: null };
-           })
+          .catch(err => {
+            console.warn("No availability set for this lawyer. Using default.");
+            return { data: null };
+          })
       ]);
 
-      setConsultations(consultRes.data || []);
-
+      // --- CRITICAL FIX: Filter out consultations where client is null ---
+      setConsultations(consultRes.data.filter(c => c.client) || []);
+      
       if (availRes.data) {
         setSchedule(availRes.data.schedule || defaultSchedule);
         setConsultationFee(availRes.data.consultationFee / 100);
@@ -207,7 +206,6 @@ const ManageCasesPage = () => {
   const subCardStyle = { ...cardStyle, padding: '1.5rem' };
   const subCardTitle = { fontSize: '1.2rem', fontWeight: '600', color: '#0A2342', marginBottom: '1rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '0.75rem' };
 
-  // --- CALENDAR STYLES (Copied from BookingPage.js) ---
   const calendarCustomStyles = `
     .react-calendar { 
         width: 100%; 
@@ -264,15 +262,13 @@ const ManageCasesPage = () => {
         background-color: #f8f9fa; 
         color: #ccc; 
     }
-    
-    /* --- NEW CLASSES TO REPLACE DOTS --- */
     .day-has-availability:not(.react-calendar__tile--active) {
-        background: #e6f7f0; /* Soft green */
+        background: #e6f7f0;
         color: #065f46;
         font-weight: 500;
     }
     .day-has-booking:not(.react-calendar__tile--active) {
-        background: #e8f4fd; /* Soft blue */
+        background: #e8f4fd;
         color: #0A2342;
         font-weight: bold;
     }
@@ -290,7 +286,10 @@ const ManageCasesPage = () => {
           <div key={c._id} style={cardStyle}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: '700', color: '#0A2342' }}>{c.client.firstName} {c.client.lastName}</h3>
+                {/* --- CRITICAL FIX: Check if c.client exists --- */}
+                <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: '700', color: '#0A2342' }}>
+                  {c.client ? `${c.client.firstName} ${c.client.lastName}` : 'Unknown Client'}
+                </h3>
                 <p style={{ margin: 0, color: '#555', fontSize: '1.05rem' }}>
                   📅 {new Date(c.bookedSlot.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {c.bookedSlot.time}
                 </p>
@@ -314,7 +313,10 @@ const ManageCasesPage = () => {
           <div key={c._id} style={cardStyle}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: '600', fontSize: '1.2rem' }}>{c.client.firstName} {c.client.lastName}</h3>
+                {/* --- CRITICAL FIX: Check if c.client exists --- */}
+                <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: '600', fontSize: '1.2rem' }}>
+                  {c.client ? `${c.client.firstName} ${c.client.lastName}` : 'Unknown Client'}
+                </h3>
                 <p style={{ margin: 0, color: '#555' }}>{c.caseCategory} - {c.caseId}</p>
               </div>
               <span style={statusStyle(c.status)}>{c.status}</span>
@@ -332,7 +334,6 @@ const ManageCasesPage = () => {
     const selectedDayString = getDayString(selectedDate);
     const slotsForSelectedDay = (schedule && schedule[selectedDayString]) ? schedule[selectedDayString] : [];
 
-    // --- UPDATED: Function to add CSS classes instead of dots ---
     const getTileClassName = ({ date, view }) => {
         if (view === 'month' && schedule) {
             const dayString = getDayString(date);
@@ -378,7 +379,7 @@ const ManageCasesPage = () => {
                 <Calendar
                   onChange={setSelectedDate}
                   value={selectedDate}
-                  tileClassName={getTileClassName} // <-- UPDATED from tileContent
+                  tileClassName={getTileClassName}
                   minDate={new Date()}
                 />
               </div>
@@ -417,7 +418,10 @@ const ManageCasesPage = () => {
                   todaysBookings.map(c => (
                     <div key={c._id} style={{borderBottom: '1px solid #f0f0f0', paddingBottom: '0.75rem', marginBottom: '0.75rem'}}>
                       <strong style={{color: '#0A2342'}}>{c.bookedSlot.time}</strong>
-                      <p style={{margin: '0.25rem 0 0 0', color: '#555'}}>with {c.client.firstName} {c.client.lastName}</p>
+                      {/* --- CRITICAL FIX: Check if c.client exists --- */}
+                      <p style={{margin: '0.25rem 0 0 0', color: '#555'}}>
+                        with {c.client ? `${c.client.firstName} ${c.client.lastName}` : 'Unknown Client'}
+                      </p>
                       <p style={{margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: '#86868b'}}>Case ID: {c.caseId}</p>
                     </div>
                   ))

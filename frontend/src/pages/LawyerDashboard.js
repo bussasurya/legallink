@@ -1,7 +1,7 @@
 // frontend/src/pages/LawyerDashboard.js
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom'; // Link has been removed
+import { useNavigate } from 'react-router-dom'; // <-- 'Link' has been removed
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
@@ -30,7 +30,8 @@ const LawyerDashboard = () => {
             const res = await api.get('/api/lawyer/consultations', {
                 headers: { 'x-auth-token': token }
             });
-            setConsultations(res.data);
+            // --- CRITICAL FIX: Filter out consultations where client is null ---
+            setConsultations(res.data.filter(c => c.client));
         } catch (err) {
             console.error("Failed to fetch consultations", err);
         } finally {
@@ -44,7 +45,6 @@ const LawyerDashboard = () => {
         if (storedUser) {
             setUser(JSON.parse(storedUser));
         } else if (token) {
-            // If user is missing but token exists, refetch profile
             try {
                 const profileRes = await api.get('/api/profile/me', { headers: { 'x-auth-token': token } });
                 setUser(profileRes.data);
@@ -116,7 +116,6 @@ const LawyerDashboard = () => {
     };
     const timelineCardStyle = { ...statCardStyle, marginTop: '2rem' };
 
-    // --- CRITICAL FIX: Added the missing style ---
     const timelineItemStyle = { 
         display: 'flex', 
         alignItems: 'center', 
@@ -187,7 +186,8 @@ const LawyerDashboard = () => {
                             <div style={requestItemInfoStyle}>
                                 <strong style={{color: '#0A2342'}}>{c.caseId}</strong>
                                 <p style={{margin: '0.25rem 0', color: '#333'}}>
-                                    From: {c.client.firstName} {c.client.lastName}
+                                    {/* --- CRITICAL FIX: Check if c.client exists --- */}
+                                    From: {c.client ? `${c.client.firstName} ${c.client.lastName}` : 'Unknown Client'}
                                 </p>
                                 <small style={{color: '#555'}}>{c.caseDescription}</small>
                             </div>
@@ -223,7 +223,10 @@ const LawyerDashboard = () => {
                             </div>
                             <div>
                                 <strong>{new Date(c.bookedSlot.date).toLocaleDateString()} at {c.bookedSlot.time}</strong>
-                                <p style={{margin: '0.25rem 0', color: '#555'}}>With: {c.client.firstName} {c.client.lastName} (Case ID: {c.caseId})</p>
+                                <p style={{margin: '0.25rem 0', color: '#555'}}>
+                                    {/* --- CRITICAL FIX: Check if c.client exists --- */}
+                                    With: {c.client ? `${c.client.firstName} ${c.client.lastName}` : 'Unknown Client'} (Case ID: {c.caseId})
+                                </p>
                             </div>
                         </div>
                     ))
