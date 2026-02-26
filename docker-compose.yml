@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    container_name: legallink_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb+srv://myuser:tenalirk@merncluster.8cqcvhr.mongodb.net/legalPortalDB?retryWrites=true&w=majority
+      - PORT=5000
+      - JWT_SECRET=8f9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
+    networks:
+      - legallink_network
+
+  frontend:
+    build: ./frontend
+    container_name: legallink_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - legallink_network
+
+networks:
+  legallink_network:
+    driver: bridge
