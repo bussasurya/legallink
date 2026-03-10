@@ -4,10 +4,8 @@ services:
     container_name: legallink_backend
     ports:
       - "5000:5000"
-    environment:
-      - MONGO_URI=${MONGO_URI}
-      - PORT=${PORT}
-      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - ./backend/.env   # 👈 THIS IS THE FIX
     networks:
       - legallink_network
 

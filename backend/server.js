@@ -16,7 +16,11 @@ initializeSocket(server);
 
 // --- Middleware ---
 const corsOptions = {
-  origin: ["http://localhost:3000", "https://legallink.vercel.app"],
+  origin: [
+    "http://localhost:3000", 
+    "https://legallink.vercel.app",
+    "http://20.189.72.233" // <-- ADDED YOUR AZURE CLOUD IP HERE
+  ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   allowedHeaders: ['Content-Type', 'x-auth-token']
 };
@@ -49,7 +53,7 @@ app.use('/api/consultations', require('./routes/consultation'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/availability', require('./routes/availability'));
 app.use('/api/ai', require('./routes/ai'));
-app.use('/api/messages', require('./routes/message')); // <-- THIS LINE FIXES THE 404 ERROR
+app.use('/api/messages', require('./routes/message')); 
 
 // --- Serve Static Files ---
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
