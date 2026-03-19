@@ -67,8 +67,8 @@ router.get('/verify/:token', async (req, res) => {
         });
 
         if (!user) {
-            // --- UPDATED: Use the forced live IP for the redirect ---
-            return res.redirect(`${LIVE_CLIENT_URL}/login?message=Link expired or invalid.`);
+            // --- FIX: Return JSON instead of a Redirect so React can read it ---
+            return res.status(400).json({ msg: 'Link expired or invalid.' });
         }
 
         user.emailVerified = true;
@@ -76,12 +76,12 @@ router.get('/verify/:token', async (req, res) => {
         user.tokenExpiry = undefined;
         await user.save();
 
-        // --- UPDATED: Use the forced live IP for the redirect ---
-        res.redirect(`${LIVE_CLIENT_URL}/login?message=Email verified successfully! You can now log in.`);
+        // --- FIX: Return JSON instead of a Redirect ---
+        res.json({ msg: 'Email verified successfully! You can now log in.' });
 
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server Error');
+        res.status(500).json({ msg: 'Server Error during verification.' });
     }
 });
 
