@@ -28,9 +28,26 @@ const SignUpPage = () => {
             return toast.error('Passwords do not match!');
         }
         try {
-            await api.post('/api/auth/register', { ...formData, role });
-            toast.success('Registration successful! Please check your email.');
-            navigate('/login');
+            // --- UPDATED: Capture the response from the backend ---
+            const response = await api.post('/api/auth/register', { ...formData, role });
+            
+            // --- NEW SECURITY FIX: Save the token and auto-login ---
+            if (response.data && response.data.token) {
+                localStorage.setItem('token', response.data.token);
+                localStorage.setItem('user', JSON.stringify(response.data.user));
+                toast.success('Registration successful! Taking you to your dashboard...');
+                
+                // Route them to the correct dashboard instantly
+                if (role === 'lawyer') {
+                    navigate('/lawyer-dashboard');
+                } else {
+                    navigate('/client-dashboard');
+                }
+            } else {
+                // Fallback just in case your backend requires email verification first
+                toast.success('Registration successful! Please check your email.');
+                navigate('/login');
+            }
         } catch (err) {
             toast.error(err.response?.data?.msg || 'An unknown error occurred.');
         }
