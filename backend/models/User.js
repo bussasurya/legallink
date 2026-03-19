@@ -18,7 +18,13 @@ const userSchema = new mongoose.Schema({
     govId: { type: String },
 
     // Lawyer-Specific Fields
-    barCouncilId: { type: String, unique: true, sparse: true },
+    barCouncilId: { 
+        type: String, 
+        unique: true, 
+        sparse: true,
+        // --- THIS IS THE FIX: Convert empty strings to undefined so sparse actually works ---
+        set: v => v === '' ? undefined : v 
+    },
     primaryPracticeArea: { type: String },
     additionalPracticeAreas: [{ type: String }],
     yearsOfExperience: { type: Number },
