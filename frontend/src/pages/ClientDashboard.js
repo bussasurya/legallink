@@ -22,10 +22,15 @@ const ClientDashboard = () => {
 
     const fetchDashboardData = useCallback(async () => {
         const token = localStorage.getItem('token');
-        if (!token) {
+        
+        // --- ADDED SECURITY FIX: Check for corrupted tokens ---
+        if (!token || token === 'undefined' || token === 'null') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             navigate('/login');
             return;
         }
+        
         try {
             const profilePromise = api.get('/api/profile/me', { headers: { 'x-auth-token': token } });
             const consultPromise = api.get('/api/client/my-consultations', { headers: { 'x-auth-token': token } });
@@ -36,7 +41,16 @@ const ClientDashboard = () => {
             setConsultations(consultRes.data);
         } catch (err) {
             console.error("Failed to fetch dashboard data", err);
-            toast.error("Could not load dashboard data.");
+            
+            // --- ADDED SECURITY FIX: Handle 401 Unauthorized Gracefully ---
+            if (err.response?.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                toast.error("Session expired or missing. Please log in again.");
+                navigate('/login');
+            } else {
+                toast.error("Could not load dashboard data.");
+            }
         } finally {
             setLoading(false);
         }
