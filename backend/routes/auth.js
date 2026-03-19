@@ -8,6 +8,9 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { sendVerificationEmail } = require('../services/emailService');
 
+// --- CRITICAL FIX: Force the live Azure IP for all email links and redirects ---
+const LIVE_CLIENT_URL = 'http://20.189.72.233';
+
 // @route   POST api/auth/register
 // @desc    Register a new user
 router.post('/register', async (req, res) => {
@@ -40,8 +43,8 @@ router.post('/register', async (req, res) => {
 
         await user.save();
 
-        // Create the full, public verification URL
-        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+        // --- UPDATED: Use the forced live IP ---
+        const verificationUrl = `${LIVE_CLIENT_URL}/verify-email/${verificationToken}`;
         
         // Pass the full URL to the email service
         await sendVerificationEmail(user.email, verificationUrl);
@@ -64,7 +67,8 @@ router.get('/verify/:token', async (req, res) => {
         });
 
         if (!user) {
-            return res.redirect(`${process.env.FRONTEND_URL}/login?message=Link expired or invalid.`);
+            // --- UPDATED: Use the forced live IP for the redirect ---
+            return res.redirect(`${LIVE_CLIENT_URL}/login?message=Link expired or invalid.`);
         }
 
         user.emailVerified = true;
@@ -72,7 +76,8 @@ router.get('/verify/:token', async (req, res) => {
         user.tokenExpiry = undefined;
         await user.save();
 
-        res.redirect(`${process.env.FRONTEND_URL}/login?message=Email verified successfully! You can now log in.`);
+        // --- UPDATED: Use the forced live IP for the redirect ---
+        res.redirect(`${LIVE_CLIENT_URL}/login?message=Email verified successfully! You can now log in.`);
 
     } catch (err) {
         console.error(err.message);
@@ -104,7 +109,6 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ msg: 'Your profile is pending admin verification.' });
         }
 
-        // --- CRITICAL FIX: The payload MUST have a 'user' object ---
         const payload = {
             user: {
                 id: user.id,
@@ -149,7 +153,8 @@ router.post('/resend-verification', async (req, res) => {
         user.tokenExpiry = tokenExpiry;
         await user.save();
 
-        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+        // --- UPDATED: Use the forced live IP ---
+        const verificationUrl = `${LIVE_CLIENT_URL}/verify-email/${verificationToken}`;
         await sendVerificationEmail(user.email, verificationUrl);
 
         res.json({ msg: 'A new verification email has been sent.' });
