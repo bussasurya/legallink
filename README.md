@@ -1,4 +1,4 @@
-# Legal Portal Project 🧑‍💼👩‍⚖️
+# Legal Link Project 🧑‍💼👩‍⚖️
 
 This is a full-stack legal management platform built using the **MERN stack** (MongoDB, Express.js, React, Node.js). It features three distinct user portals: a Client Portal for case submission, a Lawyer Portal for professional management, and an Admin Portal for user verification.
 
